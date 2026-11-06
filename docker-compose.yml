@@ -1,0 +1,16 @@
+services:
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /app/data
+      DB_PATH: /data/app.sqlite3
+      COOKIE_SECURE: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - sqlite_data:/data
+
+volumes:
+  sqlite_data:
