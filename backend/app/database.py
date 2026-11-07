@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 import sqlite3
 from contextlib import contextmanager
@@ -45,8 +46,93 @@ def initialize_database(db_path: Path) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
             CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+            CREATE TABLE IF NOT EXISTS forecast_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                route TEXT NOT NULL,
+                flight_date TEXT NOT NULL,
+                price REAL NOT NULL,
+                forecast_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_forecast_history_user_created
+                ON forecast_history(user_id, created_at DESC, id DESC);
             """
         )
+
+
+def record_forecast_history(
+    db_path: Path,
+    user_id: int,
+    forecast: dict[str, Any],
+    limit: int = 50,
+) -> dict[str, Any]:
+    created_at = _utc_now().isoformat()
+    with connect(db_path) as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO forecast_history
+                (user_id, route, flight_date, price, forecast_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                forecast["route"],
+                forecast["date"],
+                forecast["price"],
+                json.dumps(forecast, ensure_ascii=False, separators=(",", ":")),
+                created_at,
+            ),
+        )
+        connection.execute(
+            """
+            DELETE FROM forecast_history
+            WHERE user_id = ? AND id NOT IN (
+                SELECT id FROM forecast_history
+                WHERE user_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+            )
+            """,
+            (user_id, user_id, limit),
+        )
+    return {
+        "id": cursor.lastrowid,
+        "route": forecast["route"],
+        "date": forecast["date"],
+        "price": forecast["price"],
+        "median_sales": forecast["median_sales"],
+        "seats": forecast["seats"],
+        "forecast": forecast,
+        "created_at": created_at,
+    }
+
+
+def list_forecast_history(db_path: Path, user_id: int, limit: int = 50) -> list[dict[str, Any]]:
+    with connect(db_path) as connection:
+        rows = connection.execute(
+            """
+            SELECT id, route, flight_date, price, forecast_json, created_at
+            FROM forecast_history
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, limit),
+        ).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "route": row["route"],
+            "date": row["flight_date"],
+            "price": row["price"],
+            "median_sales": json.loads(row["forecast_json"])["median_sales"],
+            "seats": json.loads(row["forecast_json"])["seats"],
+            "forecast": json.loads(row["forecast_json"]),
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
 
 
 def create_user(db_path: Path, email: str, password_hash: str) -> dict[str, Any]:

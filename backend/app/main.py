@@ -17,6 +17,8 @@ from .database import (
     find_user_for_session,
     initialize_database,
     issue_session,
+    list_forecast_history,
+    record_forecast_history,
     revoke_session,
 )
 from .schemas import AccountRequest, ForecastRequest, LoginRequest, UserResponse
@@ -168,16 +170,23 @@ def create_app(
             raise HTTPException(status_code=404, detail="Для маршрута нет доступных дат")
         return dates
 
+    @app.get("/api/forecast/history")
+    def forecast_history(
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[dict[str, Any]]:
+        return list_forecast_history(app.state.db_path, user["id"])
+
     @app.post("/api/forecast")
     def forecast(
         payload: ForecastRequest,
-        _: dict[str, Any] = Depends(current_user),
+        user: dict[str, Any] = Depends(current_user),
     ) -> dict[str, Any]:
         if payload.route not in app.state.catalog.routes:
             raise HTTPException(status_code=404, detail="Маршрут не найден")
         result = app.state.catalog.predict(payload.route, payload.date, payload.price)
         if result is None:
             raise HTTPException(status_code=404, detail="На эту дату рейс не найден")
+        record_forecast_history(app.state.db_path, user["id"], result)
         return result
 
     return app

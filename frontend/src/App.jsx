@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import ForecastChart from './ForecastChart.jsx';
+import GradientWave from './GradientWave.jsx';
+import AnimatedGradient from './AnimatedGradient.jsx';
 
 function formatCount(value) {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value);
@@ -27,19 +29,43 @@ function PlaneMark() {
   );
 }
 
-function AuthForm({ onAuthenticated, initialError }) {
+function ThemeToggle({ theme, onToggle, compact = false }) {
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  return (
+    <button
+      className={'theme-toggle' + (compact ? ' theme-toggle-compact' : '')}
+      type="button"
+      onClick={onToggle}
+      aria-label={nextTheme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему'}
+      aria-pressed={theme === 'dark'}
+      title={nextTheme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему'}
+    >
+      <span className="theme-toggle-icon" aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
+      <span className="theme-toggle-label">{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>
+    </button>
+  );
+}
+
+function AuthForm({ onAuthenticated, initialError, theme, onToggleTheme }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(initialError || '');
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const isRegister = mode === 'register';
+  const passwordsMatch = !isRegister || !confirmPassword || password === confirmPassword;
 
   useEffect(() => setError(initialError || ''), [initialError]);
 
   async function submit(event) {
     event.preventDefault();
     setError('');
+    if (isRegister && password !== confirmPassword) {
+      setError('Пароли не совпадают. Проверьте подтверждение пароля.');
+      return;
+    }
     setBusy(true);
     try {
       const path = isRegister ? '/auth/register' : '/auth/login';
@@ -47,7 +73,8 @@ function AuthForm({ onAuthenticated, initialError }) {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      onAuthenticated(user);
+      setLeaving(true);
+      window.setTimeout(() => onAuthenticated(user), 260);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -56,14 +83,14 @@ function AuthForm({ onAuthenticated, initialError }) {
   }
 
   return (
-    <main className="auth-layout">
+    <main className={'auth-layout' + (leaving ? ' auth-leaving' : '')}>
       <section className="auth-story">
+        <GradientWave />
         <div className="brand-lockup">
           <PlaneMark />
           <span>РЕШИСЬ <b>АВИА</b></span>
         </div>
         <div className="story-copy">
-          <p className="eyebrow">РЕШЕНИЯ ПО ДАННЫМ</p>
           <h1>Пусть каждый рейс летит с полной отдачей.</h1>
           <p>
             Сравнивайте сценарии спроса, проверяйте загрузку и находите цену для каждого
@@ -76,9 +103,10 @@ function AuthForm({ onAuthenticated, initialError }) {
         </div>
       </section>
       <section className="auth-panel">
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         <div className="auth-card">
           <div className="auth-card-top">
-            <span className="mini-label">{isRegister ? 'НОВЫЙ АККАУНТ' : 'РАБОЧЕЕ ПРОСТРАНСТВО'}</span>
+            {isRegister && <span className="mini-label">НОВЫЙ АККАУНТ</span>}
             <span className="auth-step">{isRegister ? '01 / 01' : 'ВХОД'}</span>
           </div>
           <h2>{isRegister ? 'Создать аккаунт' : 'С возвращением'}</h2>
@@ -105,13 +133,41 @@ function AuthForm({ onAuthenticated, initialError }) {
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setError('');
+                }}
                 placeholder={isRegister ? 'Не менее 8 символов' : 'Введите пароль'}
                 minLength={isRegister ? 8 : undefined}
                 maxLength={128}
                 required
               />
             </label>
+            {isRegister && (
+              <label>
+                <span>Подтвердите пароль</span>
+                <input
+                  autoComplete="new-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    setError('');
+                  }}
+                  placeholder="Повторите пароль"
+                  minLength={8}
+                  maxLength={128}
+                  aria-invalid={!passwordsMatch}
+                  aria-describedby={!passwordsMatch ? 'confirm-password-error' : undefined}
+                  required
+                />
+                {!passwordsMatch && (
+                  <small id="confirm-password-error" className="password-mismatch" role="alert">
+                    Пароли не совпадают
+                  </small>
+                )}
+              </label>
+            )}
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="button button-primary auth-submit" type="submit" disabled={busy}>
               {busy ? 'Проверяем…' : isRegister ? 'Создать аккаунт' : 'Войти в систему'}
@@ -125,6 +181,7 @@ function AuthForm({ onAuthenticated, initialError }) {
               disabled={busy}
               onClick={() => {
                 setError('');
+                setConfirmPassword('');
                 setMode(isRegister ? 'login' : 'register');
               }}
             >
@@ -151,7 +208,7 @@ function MetricCard({ label, value, supporting, accent }) {
   );
 }
 
-function Dashboard({ user, onLogout, onSessionExpired }) {
+function Dashboard({ user, onLogout, onSessionExpired, theme, onToggleTheme, animateEntrance }) {
   const [routes, setRoutes] = useState([]);
   const [routeCode, setRouteCode] = useState('');
   const [dates, setDates] = useState([]);
@@ -162,19 +219,44 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
   const [loadingRoutes, setLoadingRoutes] = useState(true);
   const [loadingDates, setLoadingDates] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
+  const [activeHistoryId, setActiveHistoryId] = useState(null);
   const forecastRequest = useRef(null);
+  const pendingHistoryRef = useRef(null);
   const reportError = useCallback((requestError) => {
     if (requestError.status === 401) onSessionExpired();
     else setError(requestError.message);
   }, [onSessionExpired]);
 
+  const refreshHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const items = await api('/forecast/history');
+      setHistory(items);
+    } catch (requestError) {
+      if (requestError.status === 401) onSessionExpired();
+      else setHistoryError(requestError.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [onSessionExpired]);
+
   useEffect(() => () => forecastRequest.current?.abort(), []);
+
+  useEffect(() => {
+    refreshHistory();
+  }, [refreshHistory]);
 
   function invalidateForecast() {
     forecastRequest.current?.abort();
     forecastRequest.current = null;
+    pendingHistoryRef.current = null;
     setCalculating(false);
     setResult(null);
+    setActiveHistoryId(null);
     setError('');
   }
 
@@ -210,7 +292,19 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
       .then((items) => {
         if (cancelled) return;
         setDates(items);
-        if (items.length) setFlightDate(items[0].date);
+        const pendingHistory = pendingHistoryRef.current;
+        const pendingDate = pendingHistory?.route === routeCode
+          ? items.find((item) => item.date === pendingHistory.date)
+          : null;
+        if (pendingDate && pendingHistory) {
+          setFlightDate(pendingDate.date);
+          setPrice(String(pendingHistory.price));
+          setResult(pendingHistory.forecast);
+          setActiveHistoryId(pendingHistory.id);
+          pendingHistoryRef.current = null;
+        } else if (items.length) {
+          setFlightDate(items[0].date);
+        }
       })
       .catch((requestError) => {
         if (!cancelled) reportError(requestError);
@@ -231,6 +325,12 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
   const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
   });
+  const historyFlightFormatter = new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+  });
+  const historyCreatedFormatter = new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
   const dateRange = dates.length
     ? dateFormatter.formatRange(
       new Date(dates[0].date + 'T00:00:00Z'),
@@ -248,6 +348,24 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
     setPrice(nextRoute ? String(nextRoute.base_price) : '');
   }
 
+  function openHistory(item) {
+    invalidateForecast();
+    if (item.route === routeCode && dates.some((entry) => entry.date === item.date)) {
+      setFlightDate(item.date);
+      setPrice(String(item.price));
+      setResult(item.forecast);
+      setActiveHistoryId(item.id);
+      return;
+    }
+
+    pendingHistoryRef.current = item;
+    setDates([]);
+    setFlightDate('');
+    setPrice(String(item.price));
+    setRouteCode(item.route);
+    setActiveHistoryId(item.id);
+  }
+
   async function submitForecast(event) {
     event.preventDefault();
     if (!priceIsValid || !selectedDate || loadingDates || calculating) return;
@@ -261,7 +379,11 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
         signal: controller.signal,
         body: JSON.stringify({ route: routeCode, date: flightDate, price: priceValue }),
       });
-      if (!controller.signal.aborted) setResult(forecast);
+      if (!controller.signal.aborted) {
+        setResult(forecast);
+        setActiveHistoryId(null);
+        refreshHistory();
+      }
     } catch (requestError) {
       if (!controller.signal.aborted) reportError(requestError);
     } finally {
@@ -281,7 +403,8 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={'app-shell' + (animateEntrance ? ' dashboard-enter' : '')}>
+      <AnimatedGradient />
       <header className="topbar">
         <a className="brand-lockup brand-lockup-dark" href="/" aria-label="Решись Авиа — главная">
           <PlaneMark />
@@ -289,6 +412,7 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
         </a>
         <div className="topbar-right">
           <span className="live-status"><i /> Прогнозный центр</span>
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} compact />
           <span className="user-chip" title={user.email}>{user.email}</span>
           <button className="button button-quiet" type="button" onClick={logout}>Выйти</button>
         </div>
@@ -481,6 +605,54 @@ function Dashboard({ user, onLogout, onSessionExpired }) {
             )}
           </section>
         </section>
+        <section className="history-panel" aria-labelledby="history-title">
+          <div className="history-heading">
+            <div>
+              <p className="mini-label">СОХРАНЁННЫЕ РАСЧЁТЫ</p>
+              <h2 id="history-title">История поиска</h2>
+            </div>
+            {!historyLoading && history.length > 0 && (
+              <span className="scenario-count">{history.length} записей</span>
+            )}
+          </div>
+          {historyLoading ? (
+            <p className="history-empty">Загружаем историю…</p>
+          ) : historyError ? (
+            <p className="history-error" role="alert">{historyError}</p>
+          ) : history.length === 0 ? (
+            <p className="history-empty">Здесь появятся ваши маршруты, даты и цены после расчёта прогноза.</p>
+          ) : (
+            <div className="history-list">
+              {history.map((item) => {
+                const route = routes.find((entry) => entry.route === item.route);
+                const routeLabel = route
+                  ? route.origin + ' → ' + route.destination
+                  : item.route;
+                return (
+                  <button
+                    className={'history-item' + (activeHistoryId === item.id ? ' history-item-active' : '')}
+                    type="button"
+                    key={item.id}
+                    aria-pressed={activeHistoryId === item.id}
+                    onClick={() => openHistory(item)}
+                  >
+                    <span className="history-item-top">
+                      <strong>{routeLabel}</strong>
+                      <small>{historyCreatedFormatter.format(new Date(item.created_at))}</small>
+                    </span>
+                    <span className="history-item-details">
+                      <span>{historyFlightFormatter.format(new Date(item.date + 'T00:00:00Z'))}</span>
+                      <b>{formatPrice(item.price)}</b>
+                    </span>
+                    <span className="history-item-summary">
+                      Продажи: {formatCount(item.median_sales)} из {formatCount(item.seats)} мест
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
         <footer className="page-footer">
           <span>Решись Авиа <b>·</b> Инструмент планирования продаж</span>
           <span>Оценка спроса по сезонному прогнозу</span>
@@ -494,6 +666,17 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [bootError, setBootError] = useState('');
+  const [animateDashboard, setAnimateDashboard] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try {
+      return window.localStorage.getItem('reshis-theme') === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+  const toggleTheme = useCallback(() => {
+    setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark');
+  }, []);
   const sessionExpired = useCallback(() => {
     setUser(null);
     setBootError('Сессия истекла. Войдите снова, чтобы продолжить.');
@@ -514,24 +697,55 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('reshis-theme', theme);
+    } catch {
+      // Theme still works for this session when storage is unavailable.
+    }
+  }, [theme]);
+
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
     setUser(null);
     setBootError('');
+    setAnimateDashboard(false);
   }
 
+  function handleAuthenticated(account) {
+    setAnimateDashboard(true);
+    setUser(account);
+  }
+
+  let screen;
   if (!authReady) {
-    return (
+    screen = (
       <div className="boot-screen">
         <div className="boot-spinner" />
         <span>Открываем рабочее пространство…</span>
       </div>
     );
+  } else if (!user) {
+    screen = (
+      <AuthForm
+        onAuthenticated={handleAuthenticated}
+        initialError={bootError}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  } else {
+    screen = (
+      <Dashboard
+        user={user}
+        onLogout={logout}
+        onSessionExpired={sessionExpired}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        animateEntrance={animateDashboard}
+      />
+    );
   }
 
-  if (!user) {
-    return <AuthForm onAuthenticated={setUser} initialError={bootError} />;
-  }
-
-  return <Dashboard user={user} onLogout={logout} onSessionExpired={sessionExpired} />;
+  return <div className="app-root" data-theme={theme}>{screen}</div>;
 }
