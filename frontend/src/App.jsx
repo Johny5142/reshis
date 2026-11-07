@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import ForecastChart from './ForecastChart.jsx';
+import FlightDatePicker from './FlightDatePicker.jsx';
 import GradientWave from './GradientWave.jsx';
 import DashboardGradient from './AnimatedGradient.jsx';
 import AnimatedGradient from './components/ui/animated-gradient.tsx';
@@ -500,30 +501,19 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
                     ))}
                   </select>
                 </label>
-                <label>
-                  <span id="date-label">Дата вылета</span>
-                  <select
-                    aria-labelledby="date-label"
+                <div className="date-picker-field">
+                  <label id="date-label" htmlFor="flight-date-trigger">Дата вылета</label>
+                  <FlightDatePicker
+                    id="flight-date-trigger"
+                    dates={dates}
                     value={flightDate}
-                    onChange={(event) => {
+                    onChange={(nextDate) => {
                       invalidateForecast();
-                      setFlightDate(event.target.value);
+                      setFlightDate(nextDate);
                     }}
                     disabled={loadingDates || !dates.length}
-                    required
-                  >
-                    {dates.map((item) => (
-                      <option key={item.date} value={item.date}>
-                        {new Intl.DateTimeFormat('ru-RU', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          timeZone: 'UTC',
-                        }).format(new Date(item.date + 'T00:00:00Z'))}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  />
+                </div>
                 <label>
                   <span id="price-label">Цена билета</span>
                   <div className="price-input-wrap">

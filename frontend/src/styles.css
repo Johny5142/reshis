@@ -324,6 +324,60 @@ button:disabled { cursor: wait; opacity: .65; }
 .panel-heading p { margin: 0; color: var(--subtle); font-size: 10px; }
 .forecast-form { gap: 19px; }
 .forecast-form label { gap: 8px; }
+.date-picker-field { display: grid; gap: 8px; }
+.date-picker-field > label { color: var(--label); font-size: 12px; font-weight: 700; }
+.flight-date-picker { position: relative; min-width: 0; }
+.date-picker-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 45px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 13px;
+  border: 1px solid var(--field-border);
+  border-radius: 8px;
+  background: var(--field-bg);
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+  transition: border-color .18s, box-shadow .18s, background-color .18s;
+}
+.date-picker-trigger:hover:not(:disabled) { border-color: #79acd1; }
+.date-picker-trigger:focus-visible { outline: none; border-color: #4b91c7; box-shadow: 0 0 0 3px rgba(63,139,203,.14); }
+.date-picker-trigger:disabled { cursor: not-allowed; }
+.date-picker-trigger svg { flex: 0 0 17px; width: 17px; height: 17px; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.date-picker-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(310px, calc(100vw - 48px));
+  padding: 14px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 16px 42px rgba(15, 39, 68, .2);
+  color: var(--ink);
+  animation: date-picker-in .16s ease-out both;
+}
+.date-picker-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+.date-picker-header strong { color: var(--ink); font-size: 13px; font-weight: 700; text-transform: capitalize; }
+.date-picker-nav { display: grid; width: 30px; height: 30px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); transition: background-color .15s, color .15s; }
+.date-picker-nav:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-ink); }
+.date-picker-nav:disabled { cursor: not-allowed; opacity: .32; }
+.date-picker-nav svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.date-picker-weekdays, .date-picker-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; text-align: center; }
+.date-picker-weekdays { margin-bottom: 5px; color: var(--quiet); font-size: 10px; font-weight: 600; }
+.date-picker-weekdays span { display: grid; min-height: 26px; place-items: center; }
+.date-picker-day, .date-picker-days > span { display: grid; width: 100%; aspect-ratio: 1; place-items: center; }
+.date-picker-day { padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font-size: 11px; transition: background-color .14s, color .14s, transform .14s; }
+.date-picker-day:hover:not(:disabled) { transform: scale(1.06); background: var(--accent-soft); color: var(--accent-ink); }
+.date-picker-day:focus-visible { outline: 2px solid #4b91c7; outline-offset: 1px; }
+.date-picker-day-unavailable { color: var(--quiet); opacity: .35; cursor: not-allowed; }
+.date-picker-day-selected, .date-picker-day-selected:hover { background: var(--accent-ink); color: #fff; font-weight: 700; }
+.date-picker-note { margin: 10px 2px 0; color: var(--quiet); font-size: 9px; font-weight: 400; line-height: 1.4; }
+@keyframes date-picker-in { from { opacity: 0; transform: translateY(-4px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .forecast-form select { appearance: none; padding-right: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%236d7f98' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; }
 .forecast-form select:disabled { background-color: var(--surface-soft); }
 .forecast-form input, .forecast-form select { min-height: 45px; font-size: 12px; }
