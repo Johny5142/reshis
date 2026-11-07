@@ -7,6 +7,7 @@ async function register(page) {
   await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
   await page.getByLabel('Электронная почта').fill(email);
   await page.getByLabel('Пароль', { exact: true }).fill(password);
+  await page.getByLabel('Подтвердите пароль', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Спрос на вашем маршруте' })).toBeVisible();
   await page.getByLabel('Маршрут', { exact: true }).selectOption('MOW-AER');
@@ -24,6 +25,14 @@ test('registration, exact password, median, limits, session expiry and logout', 
   await expect(page.locator('.chart-point')).toHaveCount(9);
   await expect(page.locator('.chart-point-median title')).toContainText('775');
   await expect(page.locator('.chart-seat-label')).toHaveText('Мест: 900');
+  await expect(page.locator('.distribution-summary')).toContainText('656 – 923');
+  await page.getByRole('button', { name: 'Квантиль 90%', exact: true }).click();
+  await expect(page.locator('.scenario-readout')).toContainText('923 чел.');
+  await expect(page.locator('.scenario-readout')).toContainText('900 билетов');
+  await expect(page.locator('.scenario-readout')).toContainText('Продажи ограничены числом мест');
+  await page.getByRole('button', { name: 'Квантиль 50%', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.scenario-readout')).toContainText('775 чел.');
   await page.getByText('Точные значения сценариев', { exact: true }).click();
   await expect(page.locator('.median-row')).toHaveText(/50% · медиана775775/);
   // Fractional demand must use the same precision in the chart and the cards.
@@ -87,12 +96,17 @@ test('desktop and narrow mobile layouts keep all controls and results visible', 
   await register(page);
   await page.getByRole('button', { name: 'Рассчитать прогноз' }).click();
   await expect(page.locator('.chart-point-median')).toBeVisible();
+  await page.locator('.chart-card').screenshot({ path: testInfo.outputPath('chart-light.png') });
+  await page.getByRole('button', { name: 'Тёмная тема', exact: true }).click();
+  await page.locator('.chart-card').screenshot({ path: testInfo.outputPath('chart-dark.png') });
+  await page.getByRole('button', { name: 'Светлая тема', exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath('desktop.png'), fullPage: true });
   for (const width of [375, 320]) {
     await page.setViewportSize({ width, height: 850 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.getByRole('button', { name: 'Выйти', exact: true })).toBeInViewport();
     const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')]
+      .filter((element) => !element.closest('[aria-hidden="true"]'))
       .filter((element) => element.getBoundingClientRect().right > window.innerWidth)
       .map((element) => ({ tag: element.tagName, className: element.getAttribute('class'), right: element.getBoundingClientRect().right })));
     expect(overflow).toEqual([]);

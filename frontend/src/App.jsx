@@ -2,7 +2,27 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api.js';
 import ForecastChart from './ForecastChart.jsx';
 import GradientWave from './GradientWave.jsx';
-import AnimatedGradient from './AnimatedGradient.jsx';
+import DashboardGradient from './AnimatedGradient.jsx';
+import AnimatedGradient from './components/ui/animated-gradient.tsx';
+
+const DASHBOARD_GRADIENT_DARK_CONFIG = { preset: 'Prism', speed: 7 };
+const DASHBOARD_GRADIENT_LIGHT_CONFIG = {
+  preset: 'custom',
+  color1: '#FFFFFF',
+  color2: '#66B3FF',
+  color3: '#FFFFFF',
+  rotation: -50,
+  proportion: 1,
+  scale: 0.01,
+  speed: 7,
+  distortion: 0,
+  swirl: 50,
+  swirlIterations: 16,
+  softness: 47,
+  offset: -299,
+  shape: 'Checks',
+  shapeSize: 45,
+};
 
 function formatCount(value) {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value);
@@ -17,36 +37,55 @@ function formatPrice(value) {
 }
 
 function PlaneMark() {
+  return <span className="brand-mark" aria-hidden="true" />;
+}
+
+function ThemeIcon({ mode }) {
   return (
-    <span className="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 40 40" fill="none">
-        <path
-          d="M20 4.5 23.2 17l10.4 6.1c1.6.9 1 3.3-.8 3.4l-9.6-.8-1.8 7.2a1.4 1.4 0 0 1-2.8 0l-1.8-7.2-9.6.8c-1.8-.1-2.4-2.5-.8-3.4L16.8 17 20 4.5Z"
-          fill="currentColor"
-        />
-      </svg>
-    </span>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {mode === 'system' && <>
+        <rect x="3" y="4" width="18" height="13" rx="2" />
+        <path d="M8 21h8M12 17v4" />
+      </>}
+      {mode === 'light' && <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" />
+      </>}
+      {mode === 'dark' && <>
+        <path d="M20.2 15.4A8.7 8.7 0 0 1 8.6 3.8 8.8 8.8 0 1 0 20.2 15.4Z" />
+        <path d="M17.5 3v3m-1.5-1.5h3" />
+      </>}
+    </svg>
   );
 }
 
-function ThemeToggle({ theme, onToggle, compact = false }) {
-  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+function ThemeToggle({ themeMode, onSelectTheme, compact = false }) {
+  const options = [
+    { mode: 'system', label: 'Системная тема' },
+    { mode: 'light', label: 'Светлая тема' },
+    { mode: 'dark', label: 'Тёмная тема' },
+  ];
+
   return (
-    <button
-      className={'theme-toggle' + (compact ? ' theme-toggle-compact' : '')}
-      type="button"
-      onClick={onToggle}
-      aria-label={nextTheme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему'}
-      aria-pressed={theme === 'dark'}
-      title={nextTheme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему'}
-    >
-      <span className="theme-toggle-icon" aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
-      <span className="theme-toggle-label">{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>
-    </button>
+    <div className={'theme-switcher' + (compact ? ' theme-switcher-compact' : '')} role="group" aria-label="Тема оформления">
+      {options.map(({ mode, label }) => (
+        <button
+          className={'theme-switcher-option' + (themeMode === mode ? ' theme-switcher-option-active' : '')}
+          key={mode}
+          type="button"
+          onClick={() => onSelectTheme(mode)}
+          aria-label={label}
+          aria-pressed={themeMode === mode}
+          title={label}
+        >
+          <ThemeIcon mode={mode} />
+        </button>
+      ))}
+    </div>
   );
 }
 
-function AuthForm({ onAuthenticated, initialError, theme, onToggleTheme }) {
+function AuthForm({ onAuthenticated, initialError, themeMode, onSelectTheme }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -103,7 +142,7 @@ function AuthForm({ onAuthenticated, initialError, theme, onToggleTheme }) {
         </div>
       </section>
       <section className="auth-panel">
-        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        <ThemeToggle themeMode={themeMode} onSelectTheme={onSelectTheme} />
         <div className="auth-card">
           <div className="auth-card-top">
             {isRegister && <span className="mini-label">НОВЫЙ АККАУНТ</span>}
@@ -208,7 +247,7 @@ function MetricCard({ label, value, supporting, accent }) {
   );
 }
 
-function Dashboard({ user, onLogout, onSessionExpired, theme, onToggleTheme, animateEntrance }) {
+function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelectTheme, animateEntrance }) {
   const [routes, setRoutes] = useState([]);
   const [routeCode, setRouteCode] = useState('');
   const [dates, setDates] = useState([]);
@@ -404,7 +443,12 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, onToggleTheme, ani
 
   return (
     <div className={'app-shell' + (animateEntrance ? ' dashboard-enter' : '')}>
-      <AnimatedGradient />
+      <DashboardGradient />
+      <AnimatedGradient
+        config={theme === 'light' ? DASHBOARD_GRADIENT_LIGHT_CONFIG : DASHBOARD_GRADIENT_DARK_CONFIG}
+        className="dashboard-gradient-live"
+        style={{ zIndex: 1, opacity: 0.76 }}
+      />
       <header className="topbar">
         <a className="brand-lockup brand-lockup-dark" href="/" aria-label="Решись Авиа — главная">
           <PlaneMark />
@@ -412,7 +456,7 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, onToggleTheme, ani
         </a>
         <div className="topbar-right">
           <span className="live-status"><i /> Прогнозный центр</span>
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} compact />
+          <ThemeToggle themeMode={themeMode} onSelectTheme={onSelectTheme} compact />
           <span className="user-chip" title={user.email}>{user.email}</span>
           <button className="button button-quiet" type="button" onClick={logout}>Выйти</button>
         </div>
@@ -594,8 +638,8 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, onToggleTheme, ani
                 <section className="chart-card">
                   <div className="chart-heading">
                     <div>
-                      <p className="mini-label">СЦЕНАРИИ СПРОСА</p>
-                      <h3>Как может измениться загрузка</h3>
+                      <p className="mini-label">ПРИ ЦЕНЕ {formatPrice(result.price)}</p>
+                      <h3>Распределение спроса</h3>
                     </div>
                     <span className="scenario-count">9 квантилей</span>
                   </div>
@@ -662,21 +706,30 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, onToggleTheme, ani
   );
 }
 
+function getSystemTheme() {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [bootError, setBootError] = useState('');
   const [animateDashboard, setAnimateDashboard] = useState(false);
-  const [theme, setTheme] = useState(() => {
+  const [themeMode, setThemeMode] = useState(() => {
     try {
-      return window.localStorage.getItem('reshis-theme') === 'dark' ? 'dark' : 'light';
+      const savedTheme = window.localStorage.getItem('reshis-theme');
+      return savedTheme === 'dark' || savedTheme === 'system' ? savedTheme : 'light';
     } catch {
       return 'light';
     }
   });
-  const toggleTheme = useCallback(() => {
-    setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark');
-  }, []);
+  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+  const theme = themeMode === 'system' ? systemTheme : themeMode;
+  const selectTheme = useCallback((nextTheme) => setThemeMode(nextTheme), []);
   const sessionExpired = useCallback(() => {
     setUser(null);
     setBootError('Сессия истекла. Войдите снова, чтобы продолжить.');
@@ -698,12 +751,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!window.matchMedia) return undefined;
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const syncSystemTheme = (event) => setSystemTheme(event.matches ? 'dark' : 'light');
+    syncSystemTheme(query);
+    if (query.addEventListener) query.addEventListener('change', syncSystemTheme);
+    else query.addListener(syncSystemTheme);
+    return () => {
+      if (query.removeEventListener) query.removeEventListener('change', syncSystemTheme);
+      else query.removeListener(syncSystemTheme);
+    };
+  }, []);
+
+  useEffect(() => {
     try {
-      window.localStorage.setItem('reshis-theme', theme);
+      window.localStorage.setItem('reshis-theme', themeMode);
     } catch {
       // Theme still works for this session when storage is unavailable.
     }
-  }, [theme]);
+  }, [themeMode]);
 
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
@@ -730,8 +796,8 @@ export default function App() {
       <AuthForm
         onAuthenticated={handleAuthenticated}
         initialError={bootError}
-        theme={theme}
-        onToggleTheme={toggleTheme}
+        themeMode={themeMode}
+        onSelectTheme={selectTheme}
       />
     );
   } else {
@@ -741,7 +807,8 @@ export default function App() {
         onLogout={logout}
         onSessionExpired={sessionExpired}
         theme={theme}
-        onToggleTheme={toggleTheme}
+        themeMode={themeMode}
+        onSelectTheme={selectTheme}
         animateEntrance={animateDashboard}
       />
     );
