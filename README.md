@@ -1,5 +1,20 @@
 # Решись Авиа — прогноз продаж
 
+## Быстрый запуск сервера
+
+Чтобы запустить API-сервер локально в Windows, откройте PowerShell в папке проекта и выполните:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend/requirements.txt
+$env:COOKIE_SECURE = "false"
+$env:DB_PATH = "$PWD\backend\app.sqlite3"
+python -m uvicorn app.main:app --app-dir backend --reload
+```
+
+Сервер будет доступен по адресу http://127.0.0.1:8000. Проверка работы API: http://127.0.0.1:8000/api/health. Оставьте это окно PowerShell открытым. Интерфейс запускается отдельно — см. раздел «Локальный запуск» ниже.
+
 Веб-приложение для оценки спроса на авиабилеты по сезонному прогнозу. ML-модель не запускается: приложение использует опубликованные CSV из задания и пересчитывает девять квантилей для введённой цены.
 
 ## Возможности
@@ -36,7 +51,7 @@ median_demand в API — неограниченный спрос сценари�
 
     py -3.12 -m venv .venv
     .\.venv\Scripts\Activate.ps1
-    python -m pip install -r backend/requirements-dev.txt
+    python -m pip install -r backend/requirements.txt
     $env:COOKIE_SECURE = "false"
     $env:DB_PATH = "$PWD\backend\app.sqlite3"
     python -m uvicorn app.main:app --app-dir backend --reload
