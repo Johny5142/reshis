@@ -324,6 +324,33 @@ button:disabled { cursor: wait; opacity: .65; }
 .panel-heading p { margin: 0; color: var(--subtle); font-size: 10px; }
 .forecast-form { gap: 19px; }
 .forecast-form label { gap: 8px; }
+.route-field { display: grid; min-width: 0; gap: 8px; color: var(--label); font-size: 12px; font-weight: 700; }
+.route-dropdown { position: relative; z-index: 5; min-width: 0; }
+.route-dropdown:has(.route-dropdown-menu.is-open) { z-index: 30; }
+.route-dropdown-trigger { display: flex; width: 100%; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 13px; border: 1px solid var(--field-border); border-radius: 9px; background: var(--field-bg); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .18s, box-shadow .18s, transform .18s; }
+.route-dropdown-trigger:hover:not(:disabled), .route-dropdown:has(.route-dropdown-menu.is-open) .route-dropdown-trigger { border-color: #70a9d2; box-shadow: 0 4px 14px rgba(34,100,154,.08); }
+.route-dropdown-trigger:focus-visible, .route-dropdown-menu button:focus-visible { outline: 3px solid rgba(74,151,207,.3); outline-offset: 3px; }
+.route-dropdown-trigger:disabled { opacity: .7; cursor: wait; }
+.route-dropdown-current { display: grid; min-width: 0; gap: 3px; }
+.route-dropdown-code { color: var(--accent-ink); font-size: 9px; font-weight: 700; letter-spacing: .09em; }
+.route-dropdown-cities { overflow: hidden; color: var(--ink); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.route-dropdown-chevron { flex: 0 0 18px; width: 18px; height: 18px; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .22s ease; }
+.route-dropdown-chevron.is-open { transform: rotate(180deg); }
+.route-dropdown-menu { position: absolute; z-index: 35; top: calc(100% + 8px); left: 0; width: 100%; min-width: 255px; padding: 8px; overflow: hidden; border: 1px solid var(--stroke); border-radius: 12px; background: var(--surface); box-shadow: 0 18px 48px rgba(16,47,78,.2); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-8px) scale(.98); transform-origin: top center; transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1), visibility .2s; }
+.route-dropdown-menu.is-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); }
+.route-dropdown-menu-heading { padding: 7px 10px 9px; color: var(--quiet); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.route-dropdown-menu ul { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.route-dropdown-menu li { opacity: 0; transform: translateY(-7px); transition: opacity .2s ease, transform .24s cubic-bezier(.2,.8,.2,1); transition-delay: 0s; }
+.route-dropdown-menu.is-open li { opacity: 1; transform: translateY(0); transition-delay: calc(var(--route-order) * 35ms); }
+.route-dropdown-menu li[aria-selected="true"] button { background: var(--accent-soft); }
+.route-dropdown-menu li button { display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background .15s, color .15s; }
+.route-dropdown-menu li button:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.route-option-main { display: grid; min-width: 0; gap: 4px; }
+.route-option-cities { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.route-option-cities i { color: var(--accent-ink); font-size: 13px; font-style: normal; }
+.route-option-code { color: var(--quiet); font-size: 9px; font-weight: 500; letter-spacing: .04em; }
+.route-option-meta { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; color: var(--muted); font-size: 9px; }
+.route-option-selected { display: grid; width: 19px; height: 19px; place-items: center; border-radius: 50%; background: var(--accent-ink); color: var(--surface); font-size: 11px; }
 .date-picker-field { display: grid; gap: 8px; }
 .date-picker-field > label { color: var(--label); font-size: 12px; font-weight: 700; }
 .flight-date-picker { position: relative; min-width: 0; }

@@ -5,6 +5,7 @@ import FlightDatePicker from './FlightDatePicker.jsx';
 import GradientWave from './GradientWave.jsx';
 import DashboardGradient from './AnimatedGradient.jsx';
 import AnimatedGradient from './components/ui/animated-gradient.tsx';
+import RouteDropdown from './components/ui/route-dropdown.jsx';
 
 const DASHBOARD_GRADIENT_DARK_CONFIG = { preset: 'Prism', speed: 7 };
 const DASHBOARD_GRADIENT_LIGHT_CONFIG = {
@@ -378,11 +379,10 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
     )
     : 'Загрузка дат…';
 
-  function changeRoute(event) {
+  function changeRoute(nextCode) {
     invalidateForecast();
     setDates([]);
     setFlightDate('');
-    const nextCode = event.target.value;
     setRouteCode(nextCode);
     const nextRoute = routes.find((item) => item.route === nextCode);
     setPrice(nextRoute ? String(nextRoute.base_price) : '');
@@ -481,7 +481,6 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
         <section className="workspace-grid">
           <aside className="control-panel">
             <div className="panel-heading">
-              <span className="panel-index">01</span>
               <div>
                 <h2>Параметры рейса</h2>
                 <p>Выберите направление и дату</p>
@@ -491,16 +490,10 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
               <div className="loading-state">Загружаем маршруты…</div>
             ) : (
               <form className="forecast-form" onSubmit={submitForecast}>
-                <label>
-                  <span id="route-label">Маршрут</span>
-                  <select aria-labelledby="route-label" value={routeCode} onChange={changeRoute} required>
-                    {routes.map((item) => (
-                      <option key={item.route} value={item.route}>
-                        {item.origin} → {item.destination}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="route-field">
+                  <span className="route-field-label">Маршрут</span>
+                  <RouteDropdown routes={routes} value={routeCode} onChange={changeRoute} disabled={loadingDates} />
+                </div>
                 <div className="date-picker-field">
                   <label id="date-label" htmlFor="flight-date-trigger">Дата вылета</label>
                   <FlightDatePicker
