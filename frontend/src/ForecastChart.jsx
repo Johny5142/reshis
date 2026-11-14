@@ -49,7 +49,11 @@ export default function ForecastChart({ scenarios, seats }) {
   return (
     <div className="chart-wrap distribution-chart" ref={container}>
       <div className="distribution-summary">
-        <div><span>Центральные 80% прогноза</span><strong>{count(lower.demand)} – {count(upper.demand)} <small>чел.</small></strong></div>
+        <div>
+          <span>Центральные 80% прогноза</span>
+          <strong>{count(lower.demand)} – {count(upper.demand)} <small>чел.</small></strong>
+          <p className="distribution-range-hint">По модели, спрос с вероятностью около 80% окажется в этом диапазоне.</p>
+        </div>
         <div><span>Медиана · 50%</span><strong>{count(median.demand)} <small>чел.</small></strong></div>
       </div>
       <div className="chart-legend">

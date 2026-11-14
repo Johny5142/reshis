@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api.js';
 import ForecastChart from './ForecastChart.jsx';
 import FlightDatePicker from './FlightDatePicker.jsx';
-import GradientWave from './GradientWave.jsx';
 import DashboardGradient from './AnimatedGradient.jsx';
 import AnimatedGradient from './components/ui/animated-gradient.tsx';
 import RouteDropdown from './components/ui/route-dropdown.jsx';
@@ -89,6 +88,33 @@ function ThemeToggle({ themeMode, onSelectTheme, compact = false }) {
   );
 }
 
+function AuthPasswordField({ id, label, value, onChange, registration, confirmation, invalid }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="auth-field">
+      <label htmlFor={id}>{label}</label>
+      <div className="auth-password-wrap">
+        <input id={id} type={visible ? 'text' : 'password'}
+          autoComplete={registration ? 'new-password' : 'current-password'}
+          value={value} onChange={onChange} required
+          minLength={registration ? 8 : undefined} maxLength={128}
+          aria-invalid={invalid || undefined}
+          aria-describedby={confirmation ? 'confirm-password-error' : registration ? 'password-guidance' : undefined}
+          placeholder={confirmation ? 'Повторите пароль' : 'Введите пароль'} />
+        <button type="button" className="auth-visibility"
+          aria-label={(visible ? 'Скрыть' : 'Показать') + (confirmation ? ' подтверждение пароля' : ' пароль')}
+          aria-pressed={visible} onClick={() => setVisible((current) => !current)}>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+            <circle cx="12" cy="12" r="3" />
+            {visible && <path d="m3 3 18 18" />}
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AuthForm({ onAuthenticated, initialError, themeMode, onSelectTheme }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -98,144 +124,102 @@ function AuthForm({ onAuthenticated, initialError, themeMode, onSelectTheme }) {
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const isRegister = mode === 'register';
-  const passwordsMatch = !isRegister || !confirmPassword || password === confirmPassword;
+  const mismatch = isRegister && confirmPassword !== '' && password !== confirmPassword;
+  const submitting = useRef(false);
+  const transitionTimer = useRef(null);
 
   useEffect(() => setError(initialError || ''), [initialError]);
+  useEffect(() => () => window.clearTimeout(transitionTimer.current), []);
 
   async function submit(event) {
     event.preventDefault();
+    if (submitting.current || leaving) return;
     setError('');
     if (isRegister && password !== confirmPassword) {
       setError('Пароли не совпадают. Проверьте подтверждение пароля.');
       return;
     }
+    submitting.current = true;
     setBusy(true);
     try {
-      const path = isRegister ? '/auth/register' : '/auth/login';
-      const user = await api(path, {
+      const user = await api(isRegister ? '/auth/register' : '/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
       setLeaving(true);
-      window.setTimeout(() => onAuthenticated(user), 260);
+      transitionTimer.current = window.setTimeout(() => onAuthenticated(user), 260);
     } catch (requestError) {
       setError(requestError.message);
-    } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
 
   return (
     <main className={'auth-layout' + (leaving ? ' auth-leaving' : '')}>
-      <section className="auth-story">
-        <GradientWave />
-        <div className="brand-lockup">
-          <PlaneMark />
-          <span>РЕШИСЬ <b>АВИА</b></span>
+      <section className="auth-story" aria-labelledby="auth-product-title">
+        <div className="brand-lockup"><PlaneMark /><span>РЕШИСЬ <b>АВИА</b></span></div>
+        <div className="auth-story-body">
+          <div className="story-copy">
+            <h1 id="auth-product-title">Прогнозируйте спрос.<br /><span>Управляйте ценами.</span></h1>
+            <p>Оценивайте спрос на рейсы, сравнивайте ценовые сценарии и планируйте продажи с учётом вместимости.</p>
+          </div>
+          <figure className="auth-analytics">
+            <figcaption>Спрос и вместимость<span>Иллюстрация прогноза</span></figcaption>
+            <div className="auth-chart" aria-hidden="true">
+              <img src="/auth-demand-chart.svg" alt="" width="160" height="90" />
+            </div>
+            <div className="auth-chart-legend"><span><i />Сценарии спроса</span><span><i />Медиана</span><span><i />Вместимость</span></div>
+          </figure>
         </div>
-        <div className="story-copy">
-          <h1>Пусть каждый рейс летит с полной отдачей.</h1>
-          <p>
-            Сравнивайте сценарии спроса, проверяйте загрузку и находите цену для каждого
-            направления.
-          </p>
-        </div>
-        <div className="story-foot">
-          <span className="status-orb" />
-          Прогнозы на основе сезонных данных
-        </div>
+        <div className="story-foot">Авиационная аналитика для уверенных решений</div>
       </section>
-      <section className="auth-panel">
+      <section className="auth-panel" aria-labelledby="auth-form-title">
         <ThemeToggle themeMode={themeMode} onSelectTheme={onSelectTheme} />
         <div className="auth-card">
-          <div className="auth-card-top">
-            {isRegister && <span className="mini-label">НОВЫЙ АККАУНТ</span>}
-            <span className="auth-step">{isRegister ? '01 / 01' : 'ВХОД'}</span>
-          </div>
-          <h2>{isRegister ? 'Создать аккаунт' : 'С возвращением'}</h2>
-          <p className="auth-subtitle">
-            {isRegister
-              ? 'Зарегистрируйтесь, чтобы открыть прогнозы Решись Авиа.'
-              : 'Войдите, чтобы продолжить работу с прогнозом продаж.'}
-          </p>
-          <form onSubmit={submit} className="auth-form">
-            <label>
-              <span>Электронная почта</span>
-              <input
-                autoComplete="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@example.com"
-                required
-              />
-            </label>
-            <label>
-              <span>Пароль</span>
-              <input
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
-                type="password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setError('');
-                }}
-                placeholder={isRegister ? 'Не менее 8 символов' : 'Введите пароль'}
-                minLength={isRegister ? 8 : undefined}
-                maxLength={128}
-                required
-              />
-            </label>
-            {isRegister && (
-              <label>
-                <span>Подтвердите пароль</span>
-                <input
-                  autoComplete="new-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => {
-                    setConfirmPassword(event.target.value);
-                    setError('');
-                  }}
-                  placeholder="Повторите пароль"
-                  minLength={8}
-                  maxLength={128}
-                  aria-invalid={!passwordsMatch}
-                  aria-describedby={!passwordsMatch ? 'confirm-password-error' : undefined}
-                  required
-                />
-                {!passwordsMatch && (
-                  <small id="confirm-password-error" className="password-mismatch" role="alert">
-                    Пароли не совпадают
-                  </small>
-                )}
-              </label>
-            )}
-            {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="button button-primary auth-submit" type="submit" disabled={busy}>
-              {busy ? 'Проверяем…' : isRegister ? 'Создать аккаунт' : 'Войти в систему'}
-              {!busy && <span aria-hidden="true">↗</span>}
+          <h2 id="auth-form-title">{isRegister ? 'Создайте аккаунт' : 'С возвращением'}</h2>
+          <p className="auth-subtitle">{isRegister
+            ? 'Начните работу с прогнозами спроса и продаж.'
+            : 'Войдите, чтобы продолжить работу с прогнозами.'}</p>
+          <form onSubmit={submit} className="auth-form" aria-busy={busy}>
+            <div className="auth-field">
+              <label htmlFor="auth-email">Электронная почта</label>
+              <input id="auth-email" autoComplete="email" type="email" inputMode="email"
+                value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }}
+                placeholder="name@example.com" required />
+            </div>
+            <div>
+              <AuthPasswordField id="auth-password" label="Пароль" value={password}
+                registration={isRegister} onChange={(event) => { setPassword(event.target.value); setError(''); }} />
+              {isRegister && <p id="password-guidance" className="auth-field-hint">От 8 до 128 символов. Пробелы учитываются.</p>}
+            </div>
+            {isRegister && <div>
+              <AuthPasswordField id="auth-confirm" label="Подтвердите пароль" value={confirmPassword}
+                registration confirmation invalid={mismatch}
+                onChange={(event) => { setConfirmPassword(event.target.value); setError(''); }} />
+              <div className="auth-mismatch-slot">
+                <small id="confirm-password-error" className="password-mismatch" role={mismatch ? 'alert' : undefined}>
+                  {mismatch ? 'Пароли не совпадают' : ''}
+                </small>
+              </div>
+            </div>}
+            <div className="auth-feedback" aria-live="polite">
+              {error && <p className="form-error" role="alert">{error}</p>}
+            </div>
+            <button className="button button-primary auth-submit" type="submit" disabled={busy || leaving}>
+              {busy ? <><span className="auth-submit-spinner" aria-hidden="true" />{isRegister ? 'Создаём аккаунт…' : 'Входим…'}</>
+                : <>{isRegister ? 'Создать аккаунт' : 'Войти в систему'}<span aria-hidden="true">→</span></>}
             </button>
           </form>
           <div className="auth-switch">
-            {isRegister ? 'Уже зарегистрированы?' : 'Впервые здесь?'}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setError('');
-                setConfirmPassword('');
-                setMode(isRegister ? 'login' : 'register');
-              }}
-            >
-              {isRegister ? 'Войти' : 'Создать аккаунт'}
-            </button>
+            {isRegister ? 'Уже есть аккаунт?' : 'Ещё нет аккаунта?'}
+            <button type="button" disabled={busy || leaving} onClick={() => {
+              setError(''); setConfirmPassword(''); setMode(isRegister ? 'login' : 'register');
+            }}>{isRegister ? 'Войти' : 'Создать аккаунт'}</button>
           </div>
-          <p className="privacy-note">
-            Пароль хранится в защищённом виде. Email нужен только для входа.
-          </p>
+          <p className="privacy-note">Защищённый доступ к вашим расчётам</p>
         </div>
-        <footer className="auth-footer">Решись Авиа <span>·</span> Аналитика полётов</footer>
+        <footer className="auth-footer">Решись Авиа · Аналитика полётов</footer>
       </section>
     </main>
   );
