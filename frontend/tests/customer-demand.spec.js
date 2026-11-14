@@ -61,8 +61,8 @@ test('customer demand stays consistent across cards, graph, table and restored h
       await expect(page.locator('.chart-point title').nth(index)).toContainText(format(expected[index]) + ' чел.');
     }
     await page.getByText('Подробности расчёта', { exact: true }).click();
-    await expect(page.locator('.calculation-details')).toContainText('Медиана исходного расчёта: ' + format(result.median_demand));
-    await expect(page.locator('.calculation-details tbody tr').first().locator('td')).toHaveText(format(result.scenarios[0].demand));
+    await expect(page.locator('.calculation-details')).toContainText('Медиана исходного расчёта: ' + new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(result.median_demand));
+    await expect(page.locator('.calculation-details tbody tr').first().locator('td')).toHaveText(new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(result.scenarios[0].demand));
     if (price === 14000 || price === 20000) {
       await page.locator('.chart-card').screenshot({ path: testInfo.outputPath('demand-' + price + '.png') });
     }

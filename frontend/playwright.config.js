@@ -25,6 +25,8 @@ export default defineConfig({
         DB_PATH: path.join(root, 'frontend', 'test-results', 'e2e.sqlite3'),
         DATA_DIR: path.join(root, 'backend', 'tests', 'fixtures', 'forecast'),
         AUTH_TRUSTED_ORIGINS: 'http://127.0.0.1:5179',
+        // All isolated browser contexts share one loopback IP and API process.
+        AUTH_REGISTER_IP_LIMIT: '100',
       },
     },
     {

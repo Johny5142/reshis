@@ -36,7 +36,9 @@ function formatPrice(value) {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+    ...(value > 0 && value < 1e-20 ? { notation: 'scientific', maximumSignificantDigits: 17 } : {}),
   }).format(value);
 }
 
@@ -250,6 +252,7 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState('');
+  const historyRequest = useRef(0);
   const [activeHistoryId, setActiveHistoryId] = useState(null);
   const forecastRequest = useRef(null);
   const pendingHistoryRef = useRef(null);
@@ -259,18 +262,22 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
   }, [onSessionExpired]);
 
   const refreshHistory = useCallback(async () => {
+    const requestId = ++historyRequest.current;
     setHistoryLoading(true);
     setHistoryError('');
     try {
       const items = await api('/forecast/history');
+      if (requestId !== historyRequest.current) return;
       setHistory(items.map((item) => ({ ...item, forecast: normalizeForecast(item.forecast) })));
     } catch (requestError) {
+      if (requestId !== historyRequest.current) return;
       if (requestError.status === 401) onSessionExpired();
       else setHistoryError(requestError.message);
     } finally {
-      setHistoryLoading(false);
+      if (requestId === historyRequest.current) setHistoryLoading(false);
     }
   }, [onSessionExpired]);
+  useEffect(() => () => { historyRequest.current += 1; }, []);
 
   useEffect(() => () => forecastRequest.current?.abort(), []);
 
