@@ -200,7 +200,7 @@ class ForecastCatalog:
             )
 
         median = next(scenario for scenario in scenarios if scenario["quantile"] == 0.5)
-        return {
+        return with_customer_demand({
             "route": route_code,
             "date": flight_date.isoformat(),
             "price": price,
@@ -208,7 +208,16 @@ class ForecastCatalog:
             "median_demand": median["demand"],
             "median_sales": median["sales"],
             "scenarios": scenarios,
-        }
+        })
+
+
+def with_customer_demand(forecast: dict[str, Any]) -> dict[str, Any]:
+    """Add physical demand without changing the original linear results or stored JSON."""
+    return {
+        **forecast,
+        "median_customer_demand": max(0.0, forecast["median_demand"]),
+        "scenarios": [dict(item, customer_demand=max(0.0, item["demand"])) for item in forecast["scenarios"]],
+    }
 
 
 def _read_csv(path: Path, label: str) -> list[dict[str, str]]:

@@ -517,6 +517,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .distribution-summary strong { color: var(--ink); font-size: 22px; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .distribution-summary small { color: var(--muted); font-size: 12px; font-weight: 400; }
 .distribution-range-hint { max-width: 350px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.zero-demand-note { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--stroke); border-radius: 8px; color: var(--label); background: var(--accent-soft); font-size: 12px; line-height: 1.6; }
 .distribution-chart .chart-legend { margin-bottom: 14px; font-size: 10px; }
 .distribution-chart .chart-demand-line { stroke-width: 2.8; }
 .distribution-chart .chart-point { cursor: pointer; }

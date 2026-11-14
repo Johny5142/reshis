@@ -20,7 +20,8 @@ export default function ForecastChart({ scenarios, seats }) {
     return () => observer.disconnect();
   }, []);
 
-  const points = [...scenarios].sort((a, b) => a.quantile - b.quantile);
+  const points = scenarios.map((point) => ({ ...point, raw_demand: point.demand, demand: point.customer_demand }))
+    .sort((a, b) => a.quantile - b.quantile);
   const median = points.find((point) => point.quantile === 0.5);
   const selected = points.find((point) => point.quantile === selectedQuantile) || median;
   const lower = points[0];
@@ -50,9 +51,9 @@ export default function ForecastChart({ scenarios, seats }) {
     <div className="chart-wrap distribution-chart" ref={container}>
       <div className="distribution-summary">
         <div>
-          <span>Центральные 80% прогноза</span>
+          <span>Центральный 80%-й интервал прогноза модели</span>
           <strong>{count(lower.demand)} – {count(upper.demand)} <small>чел.</small></strong>
-          <p className="distribution-range-hint">По модели, спрос с вероятностью около 80% окажется в этом диапазоне.</p>
+          <p className="distribution-range-hint">Границы — 10-й и 90-й квантили с ограничением спроса нулём. Уровень 80% номинальный, фактическое покрытие не проверено.</p>
         </div>
         <div><span>Медиана · 50%</span><strong>{count(median.demand)} <small>чел.</small></strong></div>
       </div>
@@ -89,14 +90,14 @@ export default function ForecastChart({ scenarios, seats }) {
             onMouseEnter={() => setSelectedQuantile(point.quantile)}
             onClick={() => setSelectedQuantile(point.quantile)}
             className={'chart-point' + (point.quantile === 0.5 ? ' chart-point-median' : '')}>
-            <title>{`С вероятностью ${percent(point.quantile)} спрос не выше ${count(point.demand)} чел.`}</title>
+            <title>{`Квантиль ${percent(point.quantile)}: спрос покупателей ${count(point.demand)} чел.`}</title>
           </circle>
         ))}
         {visibleQuantiles.map((quantile) => (
           <text key={quantile} x={x(quantile)} y={height - 10} textAnchor="middle" className="chart-tick">{percent(quantile)}</text>
         ))}
       </svg>
-      <p className="distribution-axis-caption">Вероятность того, что спрос не выше значения точки</p>
+      <p className="distribution-axis-caption">Уровень квантиля модели</p>
       <div className="scenario-picker" role="group" aria-label="Выберите квантиль спроса">
         {points.map((point) => (
           <button key={point.quantile} type="button" aria-pressed={selected.quantile === point.quantile}
@@ -106,15 +107,15 @@ export default function ForecastChart({ scenarios, seats }) {
         ))}
       </div>
       <div className="scenario-readout" aria-live="polite" aria-atomic="true">
-        <div className="scenario-readout-title"><span className="scenario-quantile">{percent(selected.quantile)}</span><p>Спрос не выше <strong>{count(selected.demand)} чел.</strong><small>Продажи в этом сценарии: {count(selected.sales)} билетов</small></p></div>
+        <div className="scenario-readout-title"><span className="scenario-quantile">{percent(selected.quantile)}</span><p>Спрос покупателей <strong>{count(selected.demand)} чел.</strong><small>Продажи в этом сценарии: {count(selected.sales)} билетов</small></p></div>
         <span className={'scenario-capacity-status' + (selected.demand > seats ? ' is-limited' : '')}>
-          {selected.demand > seats ? 'Продажи ограничены числом мест' : selected.demand < 0 ? 'Продажи равны нулю' : 'Спрос в пределах вместимости'}
+          {selected.demand > seats ? 'Продажи ограничены числом мест' : selected.demand === 0 ? 'Продажи равны нулю' : 'Спрос в пределах вместимости'}
         </span>
       </div>
       <p className="chart-note">
-        Между соседними квантилями — около 10% вероятности. Между точками 10% и 90% — центральные 80% прогноза;
-        ещё по 10% находятся за его краями. Оранжевая область — спрос выше вместимости.
-        {lower.demand < 0 && ' Отрицательный спрос — результат линейной формулы; продажи не могут быть ниже нуля.'}
+        Спрос покупателей ограничен снизу нулём, продажи — числом мест.
+        При обнулении нескольких квантилей вероятность в нуле объединяется.
+        Оранжевая область — спрос выше вместимости.
       </p>
       <details className="scenario-details">
         <summary>Точные значения сценариев</summary>
@@ -127,6 +128,17 @@ export default function ForecastChart({ scenarios, seats }) {
               <td>{count(point.demand)}</td><td>{count(point.sales)}</td>
             </tr>
           ))}</tbody>
+        </table>
+      </details>
+      <details className="scenario-details calculation-details">
+        <summary>Подробности расчёта</summary>
+        <p className="chart-note">Линейный спрос = базовый спрос − чувствительность × (цена − базовая цена).
+          Исходные значения по ТЗ могут быть отрицательными. Спрос покупателей = max(0, линейный спрос),
+          продажи = min(места, спрос покупателей). Медиана исходного расчёта: {count(median.raw_demand)}.</p>
+        <table>
+          <caption>Исходный линейный расчёт по ТЗ</caption>
+          <thead><tr><th scope="col">Квантиль</th><th scope="col">Линейный спрос</th></tr></thead>
+          <tbody>{points.map((point) => <tr key={point.quantile}><th scope="row">{percent(point.quantile)}</th><td>{count(point.raw_demand)}</td></tr>)}</tbody>
         </table>
       </details>
     </div>

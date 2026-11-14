@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
+import { normalizeForecast } from './forecast.js';
 import ForecastChart from './ForecastChart.jsx';
 import FlightDatePicker from './FlightDatePicker.jsx';
 import DashboardGradient from './AnimatedGradient.jsx';
@@ -262,7 +263,7 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
     setHistoryError('');
     try {
       const items = await api('/forecast/history');
-      setHistory(items);
+      setHistory(items.map((item) => ({ ...item, forecast: normalizeForecast(item.forecast) })));
     } catch (requestError) {
       if (requestError.status === 401) onSessionExpired();
       else setHistoryError(requestError.message);
@@ -402,7 +403,7 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
         body: JSON.stringify({ route: routeCode, date: flightDate, price: priceValue }),
       });
       if (!controller.signal.aborted) {
-        setResult(forecast);
+        setResult(normalizeForecast(forecast));
         setActiveHistoryId(null);
         refreshHistory();
       }
@@ -598,8 +599,8 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
                 <div className="metrics-grid">
                   <MetricCard
                     label="Медианный спрос"
-                    value={formatCount(result.median_demand) + ' чел.'}
-                    supporting={result.median_demand < 0 ? 'Линейная оценка ниже нуля · продаж нет' : 'Сценарий 0.5 · хотят купить'}
+                    value={formatCount(result.median_customer_demand) + ' чел.'}
+                    supporting="Сценарий 0.5 · спрос покупателей"
                   />
                   <MetricCard
                     label="Прогноз продаж"
@@ -617,6 +618,13 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
                     }
                   />
                 </div>
+                {result.median_customer_demand === 0 && (
+                  <p className="zero-demand-note" role="status">
+                    {result.scenarios.every((item) => item.customer_demand === 0)
+                      ? 'Все сценарии прогноза соответствуют нулевому спросу при выбранной цене.'
+                      : 'При выбранной цене модель не прогнозирует покупателей в медианном сценарии.'}
+                  </p>
+                )}
                 <section className="chart-card">
                   <div className="chart-heading">
                     <div>

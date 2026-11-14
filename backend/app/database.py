@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
+from .data import with_customer_demand
 
 
 SESSION_TTL = timedelta(hours=8)
@@ -132,7 +133,7 @@ def list_forecast_history(db_path: Path, user_id: int, limit: int = 50) -> list[
             "price": row["price"],
             "median_sales": json.loads(row["forecast_json"])["median_sales"],
             "seats": json.loads(row["forecast_json"])["seats"],
-            "forecast": json.loads(row["forecast_json"]),
+            "forecast": with_customer_demand(json.loads(row["forecast_json"])),
             "created_at": row["created_at"],
         }
         for row in rows
