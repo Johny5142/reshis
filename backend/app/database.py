@@ -13,6 +13,10 @@ from typing import Any, Iterator
 SESSION_TTL = timedelta(hours=8)
 
 
+class DuplicateEmailError(ValueError):
+    """The users.email unique constraint rejected registration."""
+
+
 @contextmanager
 def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -145,6 +149,24 @@ def create_user(db_path: Path, email: str, password_hash: str) -> dict[str, Any]
         return {"id": cursor.lastrowid, "email": email, "created_at": created_at}
 
 
+def register_user(db_path: Path, email: str, password_hash: str) -> tuple[dict[str, Any], str]:
+    created_at = _utc_now().isoformat()
+    with connect(db_path) as connection:
+        try:
+            cursor = connection.execute(
+                "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+                (email, password_hash, created_at),
+            )
+        except sqlite3.IntegrityError as exc:
+            if (getattr(exc, "sqlite_errorcode", None) == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+                    and str(exc) == "UNIQUE constraint failed: users.email"):
+                raise DuplicateEmailError from exc
+            raise
+        user = {"id": cursor.lastrowid, "email": email}
+        token, _ = _insert_session(connection, user["id"])
+    return user, token
+
+
 def find_user_by_email(db_path: Path, email: str) -> dict[str, Any] | None:
     with connect(db_path) as connection:
         row = connection.execute(
@@ -155,23 +177,23 @@ def find_user_by_email(db_path: Path, email: str) -> dict[str, Any] | None:
 
 
 def issue_session(db_path: Path, user_id: int) -> tuple[str, datetime]:
+    with connect(db_path) as connection:
+        result = _insert_session(connection, user_id)
+    return result
+
+
+def _insert_session(connection: sqlite3.Connection, user_id: int) -> tuple[str, datetime]:
     token = secrets.token_urlsafe(32)
     now = _utc_now()
     expires_at = now + SESSION_TTL
-    with connect(db_path) as connection:
-        connection.execute(
-            "INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
-            (
-                _token_hash(token),
-                user_id,
-                expires_at.isoformat(),
-                now.isoformat(),
-            ),
-        )
-        connection.execute(
-            "DELETE FROM sessions WHERE expires_at <= ?",
-            (now.isoformat(),),
-        )
+    connection.execute(
+        "INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+        (_token_hash(token), user_id, expires_at.isoformat(), now.isoformat()),
+    )
+    connection.execute(
+        "DELETE FROM sessions WHERE expires_at <= ?",
+        (now.isoformat(),),
+    )
     return token, expires_at
 
 

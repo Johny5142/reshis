@@ -25,7 +25,7 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
         db_path=tmp_path / "accounts.sqlite3",
         secure_cookie=False,
     )
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"X-Requested-With": "reshis"}) as test_client:
         yield test_client
 
 
@@ -67,7 +67,13 @@ def test_login_rejects_wrong_password(client: TestClient) -> None:
     assert response.status_code == 401
 
 
-def test_median_forecast_matches_source_and_sales_respect_capacity(client: TestClient) -> None:
+def test_median_forecast_matches_source_and_sales_respect_capacity(tmp_path: Path) -> None:
+    app = create_app(data_dir=Path(__file__).parent / "fixtures" / "forecast", db_path=tmp_path / "forecast.sqlite3", secure_cookie=False)
+    with TestClient(app, headers={"X-Requested-With": "reshis"}) as client:
+        check_median_forecast(client)
+
+
+def check_median_forecast(client: TestClient) -> None:
     register(client)
     response = client.post(
         "/api/forecast",
@@ -76,8 +82,8 @@ def test_median_forecast_matches_source_and_sales_respect_capacity(client: TestC
     assert response.status_code == 200
     result = response.json()
     assert result["seats"] == 900
-    assert result["median_demand"] == 775
-    assert result["median_sales"] == 775
+    assert result["median_demand"] == 809
+    assert result["median_sales"] == 809
     assert len(result["scenarios"]) == 9
     median = next(item for item in result["scenarios"] if item["quantile"] == 0.5)
     assert median["demand"] == result["median_demand"]
@@ -145,7 +151,7 @@ def test_password_whitespace_is_preserved_and_login_survives_restart(client: Tes
     assert not verify_password(stored, password.strip())
     token = client.cookies.get("reshis_session")
     assert client.post("/api/auth/logout").status_code == 204
-    with TestClient(create_app(data_dir=DATA_DIR, db_path=db_path, secure_cookie=False)) as restarted:
+    with TestClient(create_app(data_dir=DATA_DIR, db_path=db_path, secure_cookie=False), headers={"X-Requested-With": "reshis"}) as restarted:
         assert restarted.get("/api/routes", headers={"Cookie": f"reshis_session={token}"}).status_code == 401
         assert restarted.post("/api/auth/login", json={**credentials, "password": password.strip()}).status_code == 401
         assert restarted.post("/api/auth/login", json={**credentials, "password": "short"}).status_code == 401
@@ -185,9 +191,10 @@ def test_dates_and_all_protected_endpoints(client: TestClient) -> None:
     assert client.post("/api/forecast", json={"route": "MOW-AER", "date": "2026-02-30", "price": 9000}).status_code == 422
 
 
-def test_cookie_security_and_validation_does_not_echo_password(tmp_path: Path) -> None:
+def test_cookie_security_and_validation_does_not_echo_password(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_TRUSTED_ORIGINS", "https://testserver")
     app = create_app(data_dir=DATA_DIR, db_path=tmp_path / "secure.sqlite3", secure_cookie=True)
-    with TestClient(app, base_url="https://testserver") as client:
+    with TestClient(app, base_url="https://testserver", headers={"X-Requested-With": "reshis"}) as client:
         response = client.post("/api/auth/register", json={"email": "cookie@example.com", "password": "secure-password"})
         cookie = response.headers["set-cookie"].lower()
         assert all(flag in cookie for flag in ["httponly", "secure", "samesite=lax"])

@@ -7,6 +7,8 @@ services:
       DATA_DIR: /app/data
       DB_PATH: /data/app.sqlite3
       COOKIE_SECURE: "true"
+      AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:?Set the public HTTPS origin}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

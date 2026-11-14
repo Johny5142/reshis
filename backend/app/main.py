@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import logging
+from contextlib import asynccontextmanager
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -12,7 +14,8 @@ from fastapi.exceptions import RequestValidationError
 from .data import DataValidationError, ForecastCatalog
 from .database import (
     SESSION_TTL,
-    create_user,
+    DuplicateEmailError,
+    register_user,
     find_user_by_email,
     find_user_for_session,
     initialize_database,
@@ -22,13 +25,15 @@ from .database import (
     revoke_session,
 )
 from .schemas import AccountRequest, ForecastRequest, LoginRequest, UserResponse
-from .security import hash_password, verify_password
+from .security import DUMMY_PASSWORD_HASH, hash_password, verify_password, trusted_origins
+from .rate_limit import AuthLimiter
 
 
 SESSION_COOKIE = "reshis_session"
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
 DEFAULT_DB_PATH = BACKEND_ROOT / "app.sqlite3"
+logger = logging.getLogger(__name__)
 
 
 def create_app(
@@ -44,17 +49,55 @@ def create_app(
         else os.environ.get("COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
     )
 
-    catalog = ForecastCatalog.load(resolved_data_dir)
-    initialize_database(resolved_db_path)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.catalog = ForecastCatalog.load(resolved_data_dir)
+        initialize_database(resolved_db_path)
+        yield
 
     app = FastAPI(
         title="Решись Авиа — прогноз продаж",
         version="1.0.0",
         description="Прогноз спроса по сезонным квантилям из CSV.",
+        lifespan=lifespan,
     )
-    app.state.catalog = catalog
     app.state.db_path = resolved_db_path
     app.state.secure_cookie = use_secure_cookie
+    app.state.auth_limiter = AuthLimiter()
+    allowed_origins = trusted_origins(use_secure_cookie)
+
+    @app.middleware("http")
+    async def limit_auth_requests(request: Request, call_next):
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            origin = request.headers.get("origin")
+            site = request.headers.get("sec-fetch-site")
+            valid_source = (
+                origin in allowed_origins if origin is not None else
+                request.headers.get("x-requested-with") == "reshis" and site in {None, "same-origin"}
+            )
+            if not valid_source:
+                return JSONResponse(status_code=403, content={"detail": "Источник запроса не разрешён"})
+        action = request.url.path.rsplit("/", 1)[-1]
+        if request.method == "POST" and request.url.path in {"/api/auth/login", "/api/auth/register"}:
+            try:
+                app.state.auth_limiter.consume(action, "ip", request.client.host if request.client else "unknown")
+            except HTTPException as exc:
+                return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
+        return await call_next(request)
+
+    @app.exception_handler(sqlite3.Error)
+    async def database_error(_: Request, exc: sqlite3.Error) -> JSONResponse:
+        code = getattr(exc, "sqlite_errorcode", 0) & 0xff
+        unavailable = code in {
+            sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_CANTOPEN,
+            sqlite3.SQLITE_IOERR, sqlite3.SQLITE_FULL, sqlite3.SQLITE_READONLY,
+        }
+        logger.error("SQLite operation failed: category=%s code=%s", type(exc).__name__, code)
+        return JSONResponse(
+            status_code=503 if unavailable else 500,
+            content={"detail": "Сервис временно недоступен" if unavailable else "Внутренняя ошибка сервера"},
+            headers={"Retry-After": "5"} if unavailable else None,
+        )
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -80,8 +123,7 @@ def create_app(
             )
         return user
 
-    def set_session_cookie(response: Response, user_id: int) -> None:
-        token, _ = issue_session(app.state.db_path, user_id)
+    def set_session_cookie(response: Response, token: str) -> None:
         response.set_cookie(
             key=SESSION_COOKIE,
             value=token,
@@ -107,30 +149,34 @@ def create_app(
     )
     def register(payload: AccountRequest, response: Response) -> dict[str, Any]:
         email = str(payload.email).strip().lower()
+        app.state.auth_limiter.consume("register", "email", email)
         try:
-            user = create_user(
+            user, token = register_user(
                 app.state.db_path,
                 email,
                 hash_password(payload.password),
             )
-        except sqlite3.IntegrityError as exc:
+        except DuplicateEmailError as exc:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Аккаунт с такой почтой уже существует",
             ) from exc
-        set_session_cookie(response, user["id"])
+        set_session_cookie(response, token)
         return {"id": user["id"], "email": user["email"]}
 
     @app.post("/api/auth/login", response_model=UserResponse)
     def login(payload: LoginRequest, response: Response) -> dict[str, Any]:
         email = str(payload.email).strip().lower()
+        app.state.auth_limiter.consume("login", "email", email)
         user = find_user_by_email(app.state.db_path, email)
-        if user is None or not verify_password(user["password_hash"], payload.password):
+        valid_password = verify_password(user["password_hash"] if user else DUMMY_PASSWORD_HASH, payload.password)
+        if user is None or not valid_password:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Неверная почта или пароль",
             )
-        set_session_cookie(response, user["id"])
+        token, _ = issue_session(app.state.db_path, user["id"])
+        set_session_cookie(response, token)
         return {"id": user["id"], "email": user["email"]}
 
     @app.post("/api/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

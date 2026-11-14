@@ -10,9 +10,21 @@ async function register(page) {
   await page.getByLabel('Подтвердите пароль', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Спрос на вашем маршруте' })).toBeVisible();
-  await page.getByLabel('Маршрут', { exact: true }).selectOption('MOW-AER');
-  await expect(page.getByLabel('Дата вылета')).toHaveValue('2026-06-01');
+  await chooseRoute(page, 'MOW-AER');
+  await expect(page.getByLabel('Дата вылета')).toContainText('1 июня 2026');
   return { email, password };
+}
+
+async function chooseRoute(page, code) {
+  await page.getByRole('button', { name: 'Маршрут', exact: true }).click();
+  await page.getByRole('option').filter({ hasText: code }).getByRole('button').click();
+  await expect(page.getByRole('button', { name: 'Маршрут', exact: true })).toContainText(code);
+  await expect(page.getByRole('button', { name: 'Дата вылета' })).toBeEnabled();
+}
+
+async function chooseDate(page, label) {
+  await page.getByRole('button', { name: 'Дата вылета' }).click();
+  await page.getByRole('dialog', { name: 'Выбор даты вылета' }).getByRole('button', { name: label, exact: true }).click();
 }
 
 test('registration, exact password, median, limits, session expiry and logout', async ({ page, context }) => {
@@ -21,25 +33,25 @@ test('registration, exact password, median, limits, session expiry and logout', 
   const credentials = await register(page);
   const calculate = page.getByRole('button', { name: 'Рассчитать прогноз' });
   await calculate.click();
-  await expect(page.locator('.metric-card strong')).toHaveText(['775 чел.', '775 чел.', '900 мест']);
+  await expect(page.locator('.metric-card strong')).toHaveText(['809 чел.', '809 чел.', '900 мест']);
   await expect(page.locator('.chart-point')).toHaveCount(9);
-  await expect(page.locator('.chart-point-median title')).toContainText('775');
+  await expect(page.locator('.chart-point-median title')).toContainText('809');
   await expect(page.locator('.chart-seat-label')).toHaveText('Мест: 900');
-  await expect(page.locator('.distribution-summary')).toContainText('656 – 923');
+  await expect(page.locator('.distribution-summary')).toContainText('732 – 886');
   await page.getByRole('button', { name: 'Квантиль 90%', exact: true }).click();
-  await expect(page.locator('.scenario-readout')).toContainText('923 чел.');
-  await expect(page.locator('.scenario-readout')).toContainText('900 билетов');
-  await expect(page.locator('.scenario-readout')).toContainText('Продажи ограничены числом мест');
+  await expect(page.locator('.scenario-readout')).toContainText('886 чел.');
+  await expect(page.locator('.scenario-readout')).toContainText('886 билетов');
+  await expect(page.locator('.scenario-readout')).toContainText('Спрос в пределах вместимости');
   await page.getByRole('button', { name: 'Квантиль 50%', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('.scenario-readout')).toContainText('775 чел.');
+  await expect(page.locator('.scenario-readout')).toContainText('809 чел.');
   await page.getByText('Точные значения сценариев', { exact: true }).click();
-  await expect(page.locator('.median-row')).toHaveText(/50% · медиана775775/);
+  await expect(page.locator('.median-row')).toHaveText(/50% · медиана809809/);
   // Fractional demand must use the same precision in the chart and the cards.
   await page.getByLabel('Цена билета').fill('9001');
   await calculate.click();
-  await expect(page.locator('.metric-card strong').first()).toHaveText('774,9 чел.');
-  await expect(page.locator('.chart-point-median title')).toContainText('774,9');
+  await expect(page.locator('.metric-card strong').first()).toHaveText('808,9 чел.');
+  await expect(page.locator('.chart-point-median title')).toContainText('808,9');
   for (const [price, sales] of [['0', '900 чел.'], ['10000000', '0 чел.']]) {
     await page.getByLabel('Цена билета').fill(price);
     await calculate.click();
@@ -79,11 +91,10 @@ for (const field of ['price', 'date', 'route']) {
     await page.getByRole('button', { name: 'Рассчитать прогноз' }).click();
     await started;
     if (field === 'price') await page.getByLabel('Цена билета').fill('10000');
-    if (field === 'date') await page.getByLabel('Дата вылета').selectOption('2026-06-02');
-    if (field === 'route') await page.getByLabel('Маршрут', { exact: true }).selectOption('MOW-LED');
+    if (field === 'date') await chooseDate(page, '2 июня 2026 г.');
+    if (field === 'route') await chooseRoute(page, 'MOW-LED');
     release();
     await completed;
-    await page.waitForTimeout(100);
     await expect(page.getByRole('heading', { name: 'Прогноз появится здесь' })).toBeVisible();
     await expect(page.locator('.metrics-grid')).toHaveCount(0);
     await page.getByRole('button', { name: 'Рассчитать прогноз' }).click();

@@ -20,7 +20,12 @@ export default defineConfig({
       command: `"${python}" -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 18000`,
       cwd: root,
       url: 'http://127.0.0.1:18000/api/health',
-      env: { COOKIE_SECURE: 'false', DB_PATH: path.join(root, 'frontend', 'test-results', 'e2e.sqlite3') },
+      env: {
+        COOKIE_SECURE: 'false',
+        DB_PATH: path.join(root, 'frontend', 'test-results', 'e2e.sqlite3'),
+        DATA_DIR: path.join(root, 'backend', 'tests', 'fixtures', 'forecast'),
+        AUTH_TRUSTED_ORIGINS: 'http://127.0.0.1:5179',
+      },
     },
     {
       command: 'npm run dev -- --host 127.0.0.1 --port 5179 --strictPort',

@@ -8,6 +8,9 @@ export class ApiError extends Error {
 
 export async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes((options.method || 'GET').toUpperCase())) {
+    headers.set('X-Requested-With', 'reshis');
+  }
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
