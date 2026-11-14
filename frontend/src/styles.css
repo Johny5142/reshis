@@ -135,7 +135,7 @@ button:disabled { cursor: wait; opacity: .65; }
 }
 .story-copy > p:last-child { max-width: 430px; margin: 0; color: rgba(255,255,255,.69); font-family: "Vollkorn", Georgia, serif; font-size: 16px; line-height: 1.7; }
 .story-foot { display: flex; position: relative; z-index: 1; align-items: center; gap: 9px; color: rgba(255,255,255,.68); font-size: 12px; }
-.status-orb, .live-status i, .result-pill i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--sky); box-shadow: 0 0 0 4px rgba(168,221,255,.16); }
+.status-orb, .result-pill i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--sky); box-shadow: 0 0 0 4px rgba(168,221,255,.16); }
 .auth-panel { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; }
 .theme-switcher {
   display: inline-flex;
@@ -265,6 +265,25 @@ button:disabled { cursor: wait; opacity: .65; }
 
 .app-shell { position: relative; isolation: isolate; min-height: 100vh; }
 .app-shell.dashboard-enter { animation: dashboard-enter .54s cubic-bezier(.2,.75,.25,1) both; }
+.dashboard .page-heading,
+.dashboard .page-intro,
+.dashboard .panel-heading,
+.dashboard .forecast-form,
+.dashboard .flight-capacity { font-family: "Manrope", sans-serif; }
+.dashboard .page-heading h1 { font-size: clamp(32px, 3.1vw, 43px); }
+.dashboard .page-intro { font-size: 14px; }
+.dashboard .panel-heading h2 { font-size: 15px; }
+.dashboard .panel-heading p { font-size: 11px; }
+.dashboard .forecast-form label { font-size: 13px; }
+.dashboard .forecast-form input,
+.dashboard .forecast-form select,
+.dashboard .date-picker-trigger,
+.dashboard .route-dropdown-trigger { font-size: 13px; }
+.dashboard .field-hint,
+.dashboard .form-footnote,
+.dashboard .flight-capacity small { font-size: 10px; }
+.dashboard .flight-capacity b { font-size: 12px; }
+.results-panel { font-family: Inter, "Segoe UI", Arial, sans-serif; }
 .dashboard-gradient {
   position: absolute;
   z-index: 0;
@@ -302,8 +321,6 @@ button:disabled { cursor: wait; opacity: .65; }
 .app-root[data-theme="dark"] .brand-lockup-dark .brand-mark { color: #72b8ea; }
 .app-root[data-theme="dark"] .brand-lockup-dark b { color: #83c2ee; }
 .topbar-right { display: flex; align-items: center; gap: 20px; }
-.live-status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
-.live-status i { width: 6px; height: 6px; background: #5ba9e4; box-shadow: none; }
 .user-chip { max-width: 210px; overflow: hidden; color: var(--label); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .button-quiet { --button-face: #fbfdff; --button-face-bottom: #edf5fb; --button-ink: #536b85; min-height: 34px; padding: 0 12px; font-size: 11px; }
 .dashboard { max-width: 1400px; margin: 0 auto; padding: 58px clamp(22px,6.2vw,100px) 24px; }
@@ -312,9 +329,31 @@ button:disabled { cursor: wait; opacity: .65; }
 .eyebrow-dark span { padding: 0 5px; color: var(--quiet); }
 .page-heading h1 { margin: 12px 0 7px; font-size: clamp(30px,3vw,41px); letter-spacing: -.05em; line-height: 1.15; }
 .page-intro { margin: 0; color: var(--muted); font-size: 13px; }
-.date-range-badge { display: grid; gap: 7px; min-width: 185px; padding: 14px 16px; border: 1px solid var(--stroke); border-radius: 8px; background: color-mix(in srgb, var(--surface) 72%, transparent); }
-.date-range-badge .badge-label { color: var(--quiet); font-size: 8px; }
-.date-range-badge strong { font-size: 12px; font-weight: 600; }
+.date-range-badge {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 11px;
+  width: 248px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  font-family: "Manrope", sans-serif;
+}
+.date-range-badge .badge-label { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .13em; }
+.forecast-period-route { display: grid; grid-template-columns: auto minmax(32px, 1fr) auto; align-items: start; gap: 10px; }
+.forecast-period-endpoint { display: grid; gap: 6px; }
+.forecast-period-endpoint time { color: var(--ink); font-size: 20px; font-weight: 800; letter-spacing: -.04em; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.forecast-period-endpoint span { color: var(--muted); font-size: 10px; line-height: 1.4; white-space: nowrap; }
+.forecast-period-endpoint-end { text-align: right; }
+.forecast-period-connection { display: flex; align-items: center; gap: 5px; height: 25px; color: var(--accent-ink); }
+.forecast-period-connection::before, .forecast-period-connection::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--accent-ink) 35%, var(--stroke)); }
+.forecast-period-connection svg { flex: 0 0 18px; width: 18px; height: 18px; }
+.forecast-period-status { min-height: 45px; color: var(--muted); font-size: 12px; }
 .workspace-grid { display: grid; grid-template-columns: minmax(260px,305px) minmax(0,1fr); gap: 20px; align-items: stretch; }
 .control-panel, .results-panel { min-width: 0; border: 1px solid var(--stroke); border-radius: 12px; background: color-mix(in srgb, var(--paper) 83%, transparent); box-shadow: var(--shadow); }
 .control-panel { display: flex; flex-direction: column; align-self: start; padding: 23px 21px 18px; }
@@ -593,12 +632,10 @@ button:disabled { cursor: wait; opacity: .65; }
   .auth-footer { margin-top: 35px; }
   .topbar { min-height: 65px; padding: 0 17px; }
   .topbar-right { gap: 10px; }
-  .live-status { display: none; }
   .user-chip { max-width: 120px; font-size: 10px; }
   .dashboard { padding: 32px 16px 20px; }
   .page-heading { align-items: start; flex-direction: column; margin-bottom: 22px; }
-  .date-range-badge { grid-template-columns: auto auto; align-items: center; gap: 10px; min-width: 0; padding: 9px 11px; }
-  .date-range-badge strong { font-size: 10px; }
+  .date-range-badge { width: 248px; padding: 12px 14px; }
   .workspace-grid { grid-template-columns: 1fr; }
   .control-panel { padding: 18px; }
   .results-panel { min-height: 380px; }

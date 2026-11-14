@@ -277,20 +277,22 @@ export default function AnimatedGradient({
       const width = container.clientWidth;
       const height = container.clientHeight;
       const pixelRatio = window.devicePixelRatio || 1;
-      canvas.width = width * pixelRatio;
-      canvas.height = height * pixelRatio;
+      const nextWidth = Math.max(1, Math.round(width * pixelRatio));
+      const nextHeight = Math.max(1, Math.round(height * pixelRatio));
+      // Assigning canvas dimensions clears the frame, even for the same size.
+      if (canvas.width === nextWidth && canvas.height === nextHeight) return;
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       gl.viewport(0, 0, canvas.width, canvas.height);
+      // Paint in the resize callback so an empty canvas is never presented.
+      draw(performance.now());
     };
-
-    resize();
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(container);
 
     startTimeRef.current = performance.now();
 
-    const animate = (time: number) => {
+    const draw = (time: number) => {
       const elapsed = (time - startTimeRef.current) / 1000;
       const speed = (params.speed / 100) * 5;
 
@@ -319,9 +321,16 @@ export default function AnimatedGradient({
       );
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+    };
+
+    const animate = (time: number) => {
+      draw(time);
       frameIdRef.current = requestAnimationFrame(animate);
     };
 
+    resize();
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
     frameIdRef.current = requestAnimationFrame(animate);
 
     return () => {

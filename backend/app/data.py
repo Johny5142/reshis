@@ -142,10 +142,7 @@ class ForecastCatalog:
                 )
                 for quantile in QUANTILES
             }
-            if any(value < 0 for value in demand.values()):
-                raise DataValidationError(
-                    f"seasonal_forecast.csv:{line_number}: базовый спрос не может быть отрицательным"
-                )
+            # Keep raw model forecasts; sales are clamped to [0, seats] in predict().
             values = list(demand.values())
             if any(left > right for left, right in zip(values, values[1:])):
                 raise DataValidationError(

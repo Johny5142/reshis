@@ -8,6 +8,8 @@ import AnimatedGradient from './components/ui/animated-gradient.tsx';
 import RouteDropdown from './components/ui/route-dropdown.jsx';
 
 const DASHBOARD_GRADIENT_DARK_CONFIG = { preset: 'Prism', speed: 7 };
+const HISTORY_PLURAL_RULES = new Intl.PluralRules('ru-RU');
+const HISTORY_RECORD_FORMS = { one: 'запись', few: 'записи', many: 'записей', other: 'записи' };
 const DASHBOARD_GRADIENT_LIGHT_CONFIG = {
   preset: 'custom',
   color1: '#FFFFFF',
@@ -364,7 +366,7 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
   const priceValue = Number(price);
   const priceIsValid = price.trim() !== '' && Number.isFinite(priceValue) && priceValue >= 0;
   const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
-    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+    day: '2-digit', month: 'short', timeZone: 'UTC',
   });
   const historyFlightFormatter = new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
@@ -372,12 +374,8 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
   const historyCreatedFormatter = new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
-  const dateRange = dates.length
-    ? dateFormatter.formatRange(
-      new Date(dates[0].date + 'T00:00:00Z'),
-      new Date(dates[dates.length - 1].date + 'T00:00:00Z'),
-    )
-    : 'Загрузка дат…';
+  const periodStart = dates.length ? dates[0].date : null;
+  const periodEnd = dates.length ? dates[dates.length - 1].date : null;
 
   function changeRoute(nextCode) {
     invalidateForecast();
@@ -456,7 +454,6 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
           <span>РЕШИСЬ <b>АВИА</b></span>
         </a>
         <div className="topbar-right">
-          <span className="live-status"><i /> Прогнозный центр</span>
           <ThemeToggle themeMode={themeMode} onSelectTheme={onSelectTheme} compact />
           <span className="user-chip" title={user.email}>{user.email}</span>
           <button className="button button-quiet" type="button" onClick={logout}>Выйти</button>
@@ -472,9 +469,27 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
               Задайте цену и оцените, сколько пассажиров выберут рейс в разных сценариях.
             </p>
           </div>
-          <div className="date-range-badge">
-            <span className="badge-label">ДАТЫ МАРШРУТА</span>
-            <strong>{dateRange}</strong>
+          <div className="date-range-badge" aria-live="polite" aria-busy={loadingDates}>
+            <span className="badge-label">ПЕРИОД ПРОГНОЗА</span>
+            {periodStart && periodEnd ? (
+              <div className="forecast-period-route">
+                <div className="forecast-period-endpoint">
+                  <time dateTime={periodStart}>{dateFormatter.format(new Date(periodStart + 'T00:00:00Z'))}</time>
+                  <span>Начало{periodStart.slice(0, 4) !== periodEnd.slice(0, 4) ? ' · ' + periodStart.slice(0, 4) : ''}</span>
+                </div>
+                <div className="forecast-period-connection" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m21 12-7-3-3-7H8l2 8-5-1-2-3H1l2 6-2 6h2l2-3 5-1-2 8h3l3-7 7-3Z" />
+                  </svg>
+                </div>
+                <div className="forecast-period-endpoint forecast-period-endpoint-end">
+                  <time dateTime={periodEnd}>{dateFormatter.format(new Date(periodEnd + 'T00:00:00Z'))}</time>
+                  <span>Конец · {periodEnd.slice(0, 4)}</span>
+                </div>
+              </div>
+            ) : (
+              <span className="forecast-period-status">{loadingDates || loadingRoutes ? 'Загрузка дат…' : 'Нет доступных дат'}</span>
+            )}
           </div>
         </section>
 
@@ -639,7 +654,7 @@ function Dashboard({ user, onLogout, onSessionExpired, theme, themeMode, onSelec
               <h2 id="history-title">История поиска</h2>
             </div>
             {!historyLoading && history.length > 0 && (
-              <span className="scenario-count">{history.length} записей</span>
+              <span className="scenario-count">{history.length} {HISTORY_RECORD_FORMS[HISTORY_PLURAL_RULES.select(history.length)]}</span>
             )}
           </div>
           {historyLoading ? (
